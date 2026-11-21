@@ -1,6 +1,6 @@
-# Windows build for the fork (electron-builder). The macOS build keeps using
+# Windows build (electron-builder). The macOS build keeps using
 # electron-packager through `npm run package`.
-appId: com.ulanzideckopen.windows
+appId: com.edufalcao.ulanzideckopen
 productName: Ulanzi Deck Open
 copyright: Copyright (c) Ulanzi Deck Open contributors (MIT)
 directories:

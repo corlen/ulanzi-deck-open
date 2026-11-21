@@ -6,15 +6,7 @@
 const { normalizeVersion, isNewer } = require('./version');
 const { readCapped } = require('./http');
 
-// A fork can point update checks at its own releases with `updateRepo` in
-// package.json (or ULANZI_UPDATE_REPO).
-const REPO = (() => {
-  try {
-    return process.env.ULANZI_UPDATE_REPO || /** @type {{ updateRepo?: string }} */ (require('../package.json')).updateRepo || 'edufalcao/ulanzi-deck-open';
-  } catch {
-    return 'edufalcao/ulanzi-deck-open';
-  }
-})();
+const REPO = 'edufalcao/ulanzi-deck-open';
 const RELEASE_URL = `https://api.github.com/repos/${REPO}/releases/latest`;
 const UA = 'Ulanzi-Deck-Open';
 
@@ -39,7 +31,6 @@ async function fetchLatestRelease({ fetchImpl = fetch, timeout = 15_000 } = {}) 
       notes: String(release.body || ''),
       publishedAt: release.published_at || '',
       dmg: (release.assets || []).find((asset) => /\.dmg$/i.test(asset.name || ''))?.name || '',
-      installer: (release.assets || []).find((asset) => /\.(exe|msi)$/i.test(asset.name || ''))?.name || '',
     };
   } finally {
     clearTimeout(timer);

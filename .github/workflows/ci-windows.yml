@@ -1,24 +1,16 @@
-name: CI (Windows fork)
-
-# The fork's work happens on the `windows` branch. Run the suite on Windows and
-# on Linux, so the macOS/POSIX paths stay green next to the Windows ones.
+name: CI (Windows)
 
 on:
   push:
-    branches: [windows]
+    branches: [main]
   pull_request:
-    branches: [windows]
 
 permissions:
   contents: read
 
 jobs:
   test:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     defaults:
       run:
         working-directory: app
@@ -33,9 +25,5 @@ jobs:
         run: npm run lint
       - name: Type check
         run: npm run typecheck
-      - name: Unit tests (Windows)
-        if: runner.os == 'Windows'
+      - name: Unit tests
         run: npm run test:win
-      - name: Unit tests (Linux)
-        if: runner.os != 'Windows'
-        run: npm test

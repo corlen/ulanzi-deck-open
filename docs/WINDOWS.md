@@ -1,9 +1,9 @@
-# Windows (fork)
+# Windows
 
-This fork adds Windows 10/11 (x64) support to Ulanzi Deck Open. The macOS code is
-untouched: Windows support lives in `app/lib/platform/win/` plus short
-`process.platform === 'win32'` guards in the shared files, so upstream changes merge
-cleanly.
+Ulanzi Deck Open runs on Windows 10/11 (x64). Windows support lives in
+`app/lib/platform/win/` and `app/renderer/platform-win.{js,css}`, plus short
+`process.platform === 'win32'` guards in the shared files; the macOS code paths are
+unchanged.
 
 ## Requirements
 
@@ -72,23 +72,3 @@ choose **More info → Run anyway**.
 * Accessibility / Input Monitoring settings are macOS-only and hidden.
 * Microsoft Store (UWP) apps are not listed in the app picker; use their
   `shell:AppsFolder\…` link or a URL scheme in an Open URL action instead.
-
-## Keeping the fork in sync
-
-```bash
-git remote add upstream https://github.com/edufalcao/ulanzi-deck-open.git   # once
-git fetch upstream
-git checkout main && git merge --ff-only upstream/main && git push origin main
-git checkout windows && git merge main
-npm run test:win
-```
-
-`main` mirrors upstream; Windows work happens on `windows`. Releases are tagged
-`v<upstream-version>-win.<n>` (for example `v0.16.14-win.1`), which triggers
-`.github/workflows/release-windows.yml`. The inherited macOS `release.yml` also
-matches `v*` tags; disable it in the fork's Actions settings if you do not want
-DMGs built there.
-
-Update checks look at the `updateRepo` field in `app/package.json` (or
-`ULANZI_UPDATE_REPO`); set it to the fork's `owner/repo` so Windows users are
-pointed at Windows releases.

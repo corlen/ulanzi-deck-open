@@ -1,6 +1,6 @@
 'use strict';
 
-// Windows support for the fork lives here, so shared files only need a short
+// Windows support lives here, so shared files only need a short
 // `if (win) return win.x(...)` guard and the macOS code paths stay untouched.
 // `win` is null on every other platform; the modules load lazily because some
 // of them bind user32/kernel32 through koffi.

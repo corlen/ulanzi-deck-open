@@ -1,8 +1,5 @@
 # ulanzi-deck-open
 
-> **Windows fork:** this branch adds Windows 10/11 support next to the macOS app.
-> See [`docs/WINDOWS.md`](docs/WINDOWS.md) for building, installing and what differs.
-
 An open-source desktop app for the **Ulanzi D200** (14 buttons: 13 square 196×196 keys
 plus one 2×1 wide key, USB `0x2207:0x0019`). It replaces Ulanzi Studio for editing pages
 and triggering actions, and it talks to the deck directly over HID — no vendor app
@@ -78,6 +75,8 @@ what the deck shows (labels are rendered into the images).
 
 ## Requirements
 
+* **Windows 10/11 (x64)** is supported too — see [`docs/WINDOWS.md`](docs/WINDOWS.md)
+  for building, installing and what differs. The rest of this README describes macOS.
 * **macOS 13 or newer.** Apple Silicon is the default build; Intel Macs can build the
   universal app.
 * **Node.js 22.13 or newer** (`node -v`).

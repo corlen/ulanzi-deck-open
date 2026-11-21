@@ -3,7 +3,7 @@
 // Preloaded by `npm run test:win`. Upstream tests that assume macOS or POSIX
 // (a /bin/sh command line, osascript/afplay/sips, .app bundles, symlinks that
 // need admin rights on Windows, Unix file modes, ps) are skipped here instead
-// of being edited, so the fork's test files stay identical to upstream.
+// of being edited one by one.
 // Windows behaviour is covered by test/platform-win.test.js.
 
 if (process.platform === 'win32') {
