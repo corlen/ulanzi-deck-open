@@ -1,5 +1,8 @@
 # ulanzi-deck-open
 
+> **Windows fork:** this branch adds Windows 10/11 support next to the macOS app.
+> See [`docs/WINDOWS.md`](docs/WINDOWS.md) for building, installing and what differs.
+
 An open-source desktop app for the **Ulanzi D200** (14 buttons: 13 square 196×196 keys
 plus one 2×1 wide key, USB `0x2207:0x0019`). It replaces Ulanzi Studio for editing pages
 and triggering actions, and it talks to the deck directly over HID — no vendor app
