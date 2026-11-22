@@ -60,6 +60,13 @@ All host → device frames observed so far use `cmd = 0x00`; `proto` selects the
 This app sends only the changed slot for live plugin and command-output keys and
 falls back to a full page when needed (0.14.0+).
 
+**Brightness 0 and waking.** At brightness `0` the screen is fully dark. The
+firmware turns it back on (at its previous level) on the next key press, and that
+press reaches the host as nothing or as a lone release. A key release that
+arrives while the screen is already dark also wakes it, so a host that darkens
+the deck from a key press must wait until the key is up. Observed on a D200 with
+firmware 5.3.6 (Windows host).
+
 The wide-key mode is the **first field** of the proto 0x06 payload (the official app
 stores it as `SmallViewMode` and sends it through `buildSendDataString`). Fields:
 clock = `1|MM|SS|HH:MM:SS|0|24H|`; system stats =

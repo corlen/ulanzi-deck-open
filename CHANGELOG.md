@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Brightness → Turn off.** The Brightness action has a third choice next to Brighter and Dimmer. It takes the Deck to brightness 0 without changing the saved level; the next key press turns it back on and does nothing else. It also works as a Multi, Toggle or POP step.
+
+### Tests
+- Five new tests for the turn-off timing and the saved `off` op.
+
 ## 0.16.14 — 2026-11-08
 
 ### Changed
