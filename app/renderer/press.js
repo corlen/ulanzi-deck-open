@@ -6,6 +6,48 @@
 
 const pressState = new Map();
 const wakeSwallow = new Set();
+// Brightness "Turn off": the deck goes to brightness 0 without touching the
+// saved setting. The D200 firmware wakes its dark screen by itself on the next
+// key press and swallows that press, so nothing here has to watch for it.
+// A key event while the screen is dark also wakes it, so the dark frame waits
+// until every key is up.
+let deckOffPending = false;
+let deckOffTimer = null;
+// index -> press time. The firmware can swallow a release, so a key that has
+// been "down" for longer than STALE_HOLD_MS no longer blocks the turn-off.
+const heldKeys = new Map();
+const DECK_OFF_SETTLE_MS = 250;
+const STALE_HOLD_MS = 5000;
+
+function keysHeld() {
+  const now = Date.now();
+  for (const [index, since] of heldKeys) if (now - since > STALE_HOLD_MS) heldKeys.delete(index);
+  return heldKeys.size > 0;
+}
+
+/** Cancel a turn-off that is still waiting for the keys to come up. */
+function clearDeckOff() {
+  deckOffPending = false;
+  clearTimeout(deckOffTimer);
+  deckOffTimer = null;
+}
+
+function applyDeckOff() {
+  clearTimeout(deckOffTimer);
+  deckOffTimer = null;
+  if (!deckOffPending || keysHeld()) return;
+  deckOffTimer = setTimeout(() => {
+    deckOffTimer = null;
+    if (!deckOffPending || keysHeld()) return;
+    deckOffPending = false;
+    api.setBrightness(0);
+  }, DECK_OFF_SETTLE_MS);
+}
+
+function turnDeckOff() {
+  deckOffPending = true;
+  applyDeckOff();
+}
 // Physical switch bounce: the D200 can emit several press/release pairs for one
 // tap. Ignore a second press inside this window (still below a deliberate
 // double press, which the double-trigger window treats as two taps).
@@ -156,6 +198,10 @@ function toggleTimer(action) {
 }
 
 function runBrightnessAction(action) {
+  if (action.op === 'off') {
+    turnDeckOff();
+    return;
+  }
   const current = Number(state.config.settings.brightness) || 0;
   const step = Math.max(1, Number(action.step) || 5);
   const next = Math.max(0, Math.min(100, current + (action.op === 'down' ? -step : step)));
@@ -379,6 +425,10 @@ function cycleWideMode() {
 }
 
 function handleKeyEvent(index, pressed) {
+  if (pressed) heldKeys.set(index, Date.now());
+  else heldKeys.delete(index);
+  // A pending turn-off goes dark once the last key is released.
+  if (deckOffPending) applyDeckOff();
   // While the Mac is locked the deck shows the lock screen; ignore key presses.
   if (typeof lockActive === 'function' && lockActive()) return;
   if (pressed) {

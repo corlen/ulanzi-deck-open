@@ -1,6 +1,6 @@
 'use strict';
 
-/* global actionMeta, addImportFile, addPage, applyInspectorState, basename, clearPressTimers, closeAppPicker, closeHotkeyModal, closeIconLibrary, closeImportModal, closeInspector, closeInspectorDrawer, closePluginMenu, closePluginModal, closeStoreModal, commit, downscaleBackground, drawIndex, flashKey, handleKeyEvent, iconLibraryPacks, iconLibraryQuery, INSPECTOR_BREAKPOINT, importSources, inspectorDrawerOpen, loadSdStore, loadStoreCategories, loadStoreItems, navigate, openAppPicker, openImportModal, openInspectorDrawer, openPluginModal, openStoreModal, pushNow, refreshPlugins, refreshWideStats, renderAll, renderAppList, renderGrid, renderIconGrid, renderImportSources, renderInspector, renderPageList, renderPluginModal, renderPushButton, renderSdStoreList, renderStandbySlices, renderStatus, renderStoreChrome, renderSyncState, resetImportState, runImport, saveHotkey, scheduleAutoExit, scheduleLivePush, schedulePush, scheduleSave, sdStore, selectImportSource, selectStoreSource, storeState, switchInstalledTab, syncImportChrome, syncPlugins, toast, toggleInspector, uniquePageName, updatePluginCount */
+/* global actionMeta, addImportFile, clearDeckOff, addPage, applyInspectorState, basename, clearPressTimers, closeAppPicker, closeHotkeyModal, closeIconLibrary, closeImportModal, closeInspector, closeInspectorDrawer, closePluginMenu, closePluginModal, closeStoreModal, commit, downscaleBackground, drawIndex, flashKey, handleKeyEvent, iconLibraryPacks, iconLibraryQuery, INSPECTOR_BREAKPOINT, importSources, inspectorDrawerOpen, loadSdStore, loadStoreCategories, loadStoreItems, navigate, openAppPicker, openImportModal, openInspectorDrawer, openPluginModal, openStoreModal, pushNow, refreshPlugins, refreshWideStats, renderAll, renderAppList, renderGrid, renderIconGrid, renderImportSources, renderInspector, renderPageList, renderPluginModal, renderPushButton, renderSdStoreList, renderStandbySlices, renderStatus, renderStoreChrome, renderSyncState, resetImportState, runImport, saveHotkey, scheduleAutoExit, scheduleLivePush, schedulePush, scheduleSave, sdStore, selectImportSource, selectStoreSource, storeState, switchInstalledTab, syncImportChrome, syncPlugins, toast, toggleInspector, uniquePageName, updatePluginCount */
 
 const api = window.deckApp;
 const renderKey = window.KeyRenderer.drawKey;
@@ -60,6 +60,7 @@ function actionIconSrc(action) {
     return (action.op === 'stop' ? ACTION_ICON_PATHS['sound:stop'] : ACTION_ICON_PATHS.sound) || null;
   }
   if (action.type === 'brightness') {
+    if (action.op === 'off') return ACTION_ICON_PATHS.brightness || null;
     return (
       ACTION_ICON_PATHS[action.op === 'down' ? 'brightness:down' : 'brightness:up'] || null
     );
@@ -1821,6 +1822,7 @@ function bind() {
     state.config.settings.brightness = level;
     $('#brightness-value').textContent = level;
     clearTimeout(brightnessTimer);
+    clearDeckOff();
     brightnessTimer = setTimeout(() => api.setBrightness(level), 120);
     scheduleSave();
   });
@@ -1837,6 +1839,7 @@ function bind() {
     state.status = res.status;
     renderStatus();
     if (res.ok) {
+      clearDeckOff();
       api.setBrightness(state.config.settings.brightness);
       api.setSleepTime(state.config.settings.sleepSeconds);
       pushNow();
@@ -1879,6 +1882,7 @@ function bind() {
     state.status = status;
     renderStatus();
     if (!wasConnected && status.connected) {
+      clearDeckOff();
       api.setBrightness(state.config.settings.brightness);
       api.setSleepTime(state.config.settings.sleepSeconds);
       schedulePush();
@@ -2144,6 +2148,7 @@ function applyReloadedConfig(config) {
   state.selected = null;
   renderAll();
   syncPlugins();
+  clearDeckOff();
   api.setBrightness(state.config.settings.brightness);
   api.setSleepTime(state.config.settings.sleepSeconds);
   api.refreshUpdateSchedule?.();
