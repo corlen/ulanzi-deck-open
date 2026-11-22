@@ -357,3 +357,76 @@ test('a timer survives the inspector replacing its action object', async () => {
   context.toggleTimer(replacement);
   assert.equal(context.timerTextFor(replacement), '', 'cancel found the running timer');
 });
+
+function brightnessHarness(t, overrides = {}) {
+  const levels = [];
+  // Resolve timers lazily so they hit the mocked globals.
+  const harness = makeHarness(t, {
+    setTimeout: (...args) => globalThis.setTimeout(...args),
+    clearTimeout: (...args) => globalThis.clearTimeout(...args),
+    ...overrides,
+  });
+  harness.context.api.setBrightness = (level) => levels.push(level);
+  return { ...harness, levels };
+}
+
+test('brightness off darkens the deck only after the key is released', async (t) => {
+  const { context, state, key, levels } = brightnessHarness(t);
+  key.action = { type: 'brightness', op: 'off' };
+
+  context.handleKeyEvent(0, true);
+  await flush();
+  t.mock.timers.tick(1000);
+  assert.deepEqual(levels, []);
+
+  context.handleKeyEvent(0, false);
+  t.mock.timers.tick(249);
+  assert.deepEqual(levels, []);
+  t.mock.timers.tick(1);
+  assert.deepEqual(levels, [0]);
+  assert.equal(state.config.settings.brightness, 50);
+});
+
+test('brightness off waits for every held key', async (t) => {
+  const { context, key, levels } = brightnessHarness(t);
+  key.action = { type: 'none' };
+  context.handleKeyEvent(5, true);
+  key.action = { type: 'brightness', op: 'off' };
+  context.handleKeyEvent(0, true);
+  context.handleKeyEvent(0, false);
+  await flush();
+  t.mock.timers.tick(1000);
+  assert.deepEqual(levels, []);
+
+  context.handleKeyEvent(5, false);
+  t.mock.timers.tick(250);
+  assert.deepEqual(levels, [0]);
+});
+
+test('keys after brightness off run normally (the firmware handles waking)', async (t) => {
+  const { context, calls, key, levels } = brightnessHarness(t);
+  key.action = { type: 'brightness', op: 'off' };
+  context.handleKeyEvent(0, true);
+  context.handleKeyEvent(0, false);
+  await flush();
+  t.mock.timers.tick(250);
+
+  key.action = { type: 'app', value: 'app' };
+  context.handleKeyEvent(1, true);
+  context.handleKeyEvent(1, false);
+  await flush();
+  assert.deepEqual(levels, [0]);
+  assert.deepEqual(calls.actions, [{ type: 'app', value: 'app' }]);
+});
+
+test('clearDeckOff cancels a turn-off that has not gone dark yet', async (t) => {
+  const { context, key, levels } = brightnessHarness(t);
+  key.action = { type: 'brightness', op: 'off' };
+  context.handleKeyEvent(0, true);
+  context.handleKeyEvent(0, false);
+  await flush();
+
+  context.clearDeckOff();
+  t.mock.timers.tick(250);
+  assert.deepEqual(levels, []);
+});
