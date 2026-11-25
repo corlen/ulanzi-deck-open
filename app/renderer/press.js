@@ -1,17 +1,22 @@
 'use strict';
 
-/* global $, actionIconSrc, actionMeta, activePage, api, commit, drawIndex, exitStandby, isEmojiOnly, keyAt, lockActive, navigate, noteActivity, notePluginKeyPress, pinnedFor, pushNow, refreshCommandOutput, refreshWideStats, renderInspector, scheduleLivePush, scheduleSave, standbyActive, state, switchProfile, toast, WIDE_KEY_INDEX */
+/* global $, actionIconSrc, actionMeta, activePage, api, commit, drawIndex, exitStandby, isEmojiOnly, keyAt, lockActive, navigate, noteActivity, notePluginKeyPress, pinnedFor, pushLockFrame, pushNow, refreshCommandOutput, refreshWideStats, renderInspector, scheduleLivePush, schedulePush, scheduleSave, standbyActive, state, switchProfile, toast, WIDE_KEY_INDEX */
 
 // -------------------------------------------------------------- key presses
 
 const pressState = new Map();
 const wakeSwallow = new Set();
 // Brightness "Turn off": the deck goes to brightness 0 without touching the
-// saved setting. The D200 firmware wakes its dark screen by itself on the next
-// key press and swallows that press, so nothing here has to watch for it.
-// A key event while the screen is dark also wakes it, so the dark frame waits
-// until every key is up.
+// saved setting. The D200 firmware lights a dark screen again by itself on:
+//  - a key press, which it swallows (the host sees nothing or a lone release);
+//  - a key release, so the dark frame waits until every key is up;
+//  - a page upload, so automatic pushes are held while the deck is off.
+// The wake press is invisible here, so the state never swallows key events:
+// the first event that does arrive just ends it and sends what was held.
 let deckOffPending = false;
+let deckDark = false;
+let deckPushHeld = false;
+let deckPushes = 0; // key/screensaver uploads in flight (pages: state.pushing)
 let deckOffTimer = null;
 // index -> press time. The firmware can swallow a release, so a key that has
 // been "down" for longer than STALE_HOLD_MS no longer blocks the turn-off.
@@ -25,21 +30,62 @@ function keysHeld() {
   return heldKeys.size > 0;
 }
 
-/** Cancel a turn-off that is still waiting for the keys to come up. */
+/** The deck is off, or about to be: nothing automatic may be sent to it. */
+function deckOffActive() {
+  return deckOffPending || deckDark;
+}
+
+/** True when an automatic push must wait; it is sent once the deck is lit. */
+function holdDeckPush() {
+  if (!deckOffActive()) return false;
+  deckPushHeld = true;
+  return true;
+}
+
+/** Let the turn-off wait for an upload: one landing later would light the deck. */
+async function trackDeckPush(upload) {
+  deckPushes += 1;
+  try {
+    return await upload;
+  } finally {
+    deckPushes -= 1;
+  }
+}
+
+/** A full push is lighting the deck, and it carries everything that was held. */
+function noteDeckPush() {
+  if (!deckDark) return;
+  deckDark = false;
+  deckPushHeld = false;
+}
+
+function deckLit() {
+  deckDark = false;
+  if (!deckPushHeld) return;
+  deckPushHeld = false;
+  if (lockActive()) pushLockFrame().catch(() => {});
+  else schedulePush();
+}
+
+/** Forget the off state: brightness is being re-applied. */
 function clearDeckOff() {
   deckOffPending = false;
   clearTimeout(deckOffTimer);
   deckOffTimer = null;
+  deckLit();
 }
 
 function applyDeckOff() {
   clearTimeout(deckOffTimer);
-  deckOffTimer = null;
-  if (!deckOffPending || keysHeld()) return;
   deckOffTimer = setTimeout(() => {
     deckOffTimer = null;
-    if (!deckOffPending || keysHeld()) return;
+    if (!deckOffPending) return;
+    if (keysHeld() || deckPushes || state.pushing) {
+      applyDeckOff();
+      return;
+    }
     deckOffPending = false;
+    deckDark = true;
     api.setBrightness(0);
   }, DECK_OFF_SETTLE_MS);
 }
@@ -48,6 +94,7 @@ function turnDeckOff() {
   deckOffPending = true;
   applyDeckOff();
 }
+
 // Physical switch bounce: the D200 can emit several press/release pairs for one
 // tap. Ignore a second press inside this window (still below a deliberate
 // double press, which the double-trigger window treats as two taps).
@@ -202,6 +249,7 @@ function runBrightnessAction(action) {
     turnDeckOff();
     return;
   }
+  clearDeckOff();
   const current = Number(state.config.settings.brightness) || 0;
   const step = Math.max(1, Number(action.step) || 5);
   const next = Math.max(0, Math.min(100, current + (action.op === 'down' ? -step : step)));
@@ -429,6 +477,8 @@ function handleKeyEvent(index, pressed) {
   else heldKeys.delete(index);
   // A pending turn-off goes dark once the last key is released.
   if (deckOffPending) applyDeckOff();
+  // Any event means the firmware has lit the screen again.
+  if (deckDark) deckLit();
   // While the Mac is locked the deck shows the lock screen; ignore key presses.
   if (typeof lockActive === 'function' && lockActive()) return;
   if (pressed) {

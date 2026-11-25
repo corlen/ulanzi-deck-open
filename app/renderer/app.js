@@ -1,6 +1,6 @@
 'use strict';
 
-/* global actionMeta, addImportFile, clearDeckOff, addPage, applyInspectorState, basename, clearPressTimers, closeAppPicker, closeHotkeyModal, closeIconLibrary, closeImportModal, closeInspector, closeInspectorDrawer, closePluginMenu, closePluginModal, closeStoreModal, commit, downscaleBackground, drawIndex, flashKey, handleKeyEvent, iconLibraryPacks, iconLibraryQuery, INSPECTOR_BREAKPOINT, importSources, inspectorDrawerOpen, loadSdStore, loadStoreCategories, loadStoreItems, navigate, openAppPicker, openImportModal, openInspectorDrawer, openPluginModal, openStoreModal, pushNow, refreshPlugins, refreshWideStats, renderAll, renderAppList, renderGrid, renderIconGrid, renderImportSources, renderInspector, renderPageList, renderPluginModal, renderPushButton, renderSdStoreList, renderStandbySlices, renderStatus, renderStoreChrome, renderSyncState, resetImportState, runImport, saveHotkey, scheduleAutoExit, scheduleLivePush, schedulePush, scheduleSave, sdStore, selectImportSource, selectStoreSource, storeState, switchInstalledTab, syncImportChrome, syncPlugins, toast, toggleInspector, uniquePageName, updatePluginCount */
+/* global actionMeta, addImportFile, clearDeckOff, deckOffActive, holdDeckPush, trackDeckPush, addPage, applyInspectorState, basename, clearPressTimers, closeAppPicker, closeHotkeyModal, closeIconLibrary, closeImportModal, closeInspector, closeInspectorDrawer, closePluginMenu, closePluginModal, closeStoreModal, commit, downscaleBackground, drawIndex, flashKey, handleKeyEvent, iconLibraryPacks, iconLibraryQuery, INSPECTOR_BREAKPOINT, importSources, inspectorDrawerOpen, loadSdStore, loadStoreCategories, loadStoreItems, navigate, openAppPicker, openImportModal, openInspectorDrawer, openPluginModal, openStoreModal, pushNow, refreshPlugins, refreshWideStats, renderAll, renderAppList, renderGrid, renderIconGrid, renderImportSources, renderInspector, renderPageList, renderPluginModal, renderPushButton, renderSdStoreList, renderStandbySlices, renderStatus, renderStoreChrome, renderSyncState, resetImportState, runImport, saveHotkey, scheduleAutoExit, scheduleLivePush, schedulePush, scheduleSave, sdStore, selectImportSource, selectStoreSource, storeState, switchInstalledTab, syncImportChrome, syncPlugins, toast, toggleInspector, uniquePageName, updatePluginCount */
 
 const api = window.deckApp;
 const renderKey = window.KeyRenderer.drawKey;
@@ -1249,9 +1249,10 @@ function lockImageSrc() {
 
 async function pushLockFrame() {
   // No clock: a bitmap clock freezes when the Mac sleeps. The firmware wide key keeps the time.
-  return api.pushPage(
-    await renderStandbySlices({ standbyImage: lockImageSrc(), standbyClock: false })
+  const upload = renderStandbySlices({ standbyImage: lockImageSrc(), standbyClock: false }).then(
+    (images) => api.pushPage(images)
   );
+  return typeof trackDeckPush === 'function' ? trackDeckPush(upload) : upload;
 }
 
 async function enterLockScreen() {
@@ -1259,6 +1260,8 @@ async function enterLockScreen() {
   standby.active = false;
   clearStandbyTimers();
   lock.active = true;
+  // Keys stay ignored while locked, but the frame would light a deck that is off.
+  if (typeof holdDeckPush === 'function' && holdDeckPush()) return;
   try {
     const res = await pushLockFrame();
     if (!res.ok) throw new Error(res.error || 'push failed');
@@ -1303,19 +1306,25 @@ function noteActivity() {
 }
 
 async function pushStandbyFrame() {
-  const images = await renderStandbySlices(state.config.settings);
-  return api.pushPage(images);
+  return trackDeckPush(
+    renderStandbySlices(state.config.settings).then((images) => api.pushPage(images))
+  );
 }
 
 async function enterStandby() {
   standby.timer = null;
   if (standby.active || lockActive() || !state.status.connected || !standbySeconds()) return;
+  // The screensaver frame would light a deck that was turned off.
+  if (deckOffActive()) {
+    scheduleStandby();
+    return;
+  }
   standby.active = true;
   try {
     const res = await pushStandbyFrame();
     if (!res.ok) throw new Error(res.error || 'push failed');
     standby.refresh = setInterval(async () => {
-      if (!standby.active) return;
+      if (!standby.active || deckOffActive()) return;
       if (!state.status.connected) {
         standby.active = false;
         clearStandbyTimers();
